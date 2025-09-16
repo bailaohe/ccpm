@@ -26,7 +26,7 @@ detect_git_service() {
   fi
 }
 
-# 更新 settings.local.json 中的环境变量配置
+# 更新 settings.local.json 中的环境变量配置和 hooks
 update_git_service_config() {
   local service="$1"
   local cli_tool="$2"
@@ -38,33 +38,97 @@ update_git_service_config() {
 {
   "permissions": {
     "allow": []
-  },
-  "env": {}
+  }
 }
 EOF
   fi
   
-  # 使用 jq 更新环境变量，如果没有 jq 则使用 sed 备用方案
+  # 使用 jq 更新配置，如果没有 jq 则使用 sed 备用方案
   if command -v jq &> /dev/null; then
-    jq --arg service "$service" --arg cli_tool "$cli_tool" \
-       '.env.GIT_SERVICE = $service | .env.GIT_CLI_TOOL = $cli_tool' \
-       "$settings_file" > "${settings_file}.tmp" && mv "${settings_file}.tmp" "$settings_file"
-  else
-    # 备用方案：使用 sed 更新
-    if grep -q '"env"' "$settings_file"; then
-      # 更新现有的 env 部分
-      sed -i.bak '/"env":/,/}/ {
-        s/"GIT_SERVICE": *"[^"]*"/"GIT_SERVICE": "'"$service"'"/
-        s/"GIT_CLI_TOOL": *"[^"]*"/"GIT_CLI_TOOL": "'"$cli_tool"'"/
-      }' "$settings_file"
+    # 使用 jq 进行复杂的 JSON 合并操作
+    jq --arg service "$service" --arg cli_tool "$cli_tool" '
+      # 确保 env 对象存在并更新环境变量
+      .env = (.env // {}) |
+      .env.GIT_SERVICE = $service |
+      .env.GIT_CLI_TOOL = $cli_tool |
       
-      # 如果没找到对应的键，添加它们
-      if ! grep -q '"GIT_SERVICE"' "$settings_file"; then
-        sed -i.bak '/"env": *{/ a\
-    "GIT_SERVICE": "'"$service"'",\
-    "GIT_CLI_TOOL": "'"$cli_tool"'"' "$settings_file"
-      fi
+      # 确保 hooks 对象存在
+      .hooks = (.hooks // {}) |
+      
+      # 确保 PreToolUse 数组存在
+      .hooks.PreToolUse = (.hooks.PreToolUse // []) |
+      
+      # 检查是否已存在 Bash matcher 的 hook
+      if (.hooks.PreToolUse | map(select(.matcher == "Bash")) | length) == 0 then
+        # 如果不存在，添加新的 Bash hook
+        .hooks.PreToolUse += [{
+          "matcher": "Bash",
+          "hooks": [{
+            "type": "command",
+            "command": "source .claude/scripts/git/git-service-functions.sh"
+          }]
+        }]
+      else
+        # 如果已存在，更新现有的 Bash hook
+        .hooks.PreToolUse = (.hooks.PreToolUse | map(
+          if .matcher == "Bash" then
+            .hooks = [{
+              "type": "command", 
+              "command": "source .claude/scripts/git/git-service-functions.sh"
+            }]
+          else
+            .
+          end
+        ))
+      end
+    ' "$settings_file" > "${settings_file}.tmp" && mv "${settings_file}.tmp" "$settings_file"
+  else
+    # 备用方案：使用 sed 和 awk 进行更新
+    local temp_file="${settings_file}.tmp"
+    
+    # 首先确保文件有正确的基本结构
+    if ! grep -q '"env"' "$settings_file"; then
+      # 添加 env 部分
+      sed 's/}$/,\n  "env": {}\n}/' "$settings_file" > "$temp_file"
+      mv "$temp_file" "$settings_file"
     fi
+    
+    if ! grep -q '"hooks"' "$settings_file"; then
+      # 添加 hooks 部分
+      sed 's/}$/,\n  "hooks": {\n    "PreToolUse": []\n  }\n}/' "$settings_file" > "$temp_file"
+      mv "$temp_file" "$settings_file"
+    fi
+    
+    # 更新环境变量
+    if grep -q '"GIT_SERVICE"' "$settings_file"; then
+      sed -i.bak 's/"GIT_SERVICE": *"[^"]*"/"GIT_SERVICE": "'"$service"'"/' "$settings_file"
+    else
+      sed -i.bak '/"env": *{/ a\
+    "GIT_SERVICE": "'"$service"'",' "$settings_file"
+    fi
+    
+    if grep -q '"GIT_CLI_TOOL"' "$settings_file"; then
+      sed -i.bak 's/"GIT_CLI_TOOL": *"[^"]*"/"GIT_CLI_TOOL": "'"$cli_tool"'"/' "$settings_file"
+    else
+      sed -i.bak '/"env": *{/ a\
+    "GIT_CLI_TOOL": "'"$cli_tool"'",' "$settings_file"
+    fi
+    
+    # 添加或更新 PreToolUse hooks
+    if ! grep -q '"matcher": "Bash"' "$settings_file"; then
+      # 添加新的 Bash hook
+      sed -i.bak '/"PreToolUse": *\[/ a\
+      {\
+        "matcher": "Bash",\
+        "hooks": [\
+          {\
+            "type": "command",\
+            "command": "source .claude/scripts/git/git-service-functions.sh"\
+          }\
+        ]\
+      },' "$settings_file"
+    fi
+    
     rm -f "${settings_file}.bak"
   fi
 }

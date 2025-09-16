@@ -136,7 +136,7 @@ if [ "$task_count" -lt 5 ]; then
     if [ "$use_subissues" = true ]; then
       task_number=$(git_create_sub_issue "$epic_number" "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS")
     else
-      task_number=$(git_create_issue "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS")
+      task_number=$(git_create_issue "TASK-$ARGUMENTS-$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS")
     fi
 
     # Record mapping for renaming
@@ -186,7 +186,7 @@ Task:
        - If gh-sub-issue available:
          git_create_sub_issue $epic_number "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS"
        - Otherwise:
-         git_create_issue "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS"
+         git_create_issue "TASK-$ARGUMENTS-$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS"
     4. Record: task_file:issue_number
 
     IMPORTANT: Always include --label parameter with "task,epic:$ARGUMENTS"
