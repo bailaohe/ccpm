@@ -16,9 +16,6 @@ Mark an issue as complete and close it on Git Service.
 ### 0. Initialize Git Service Detection
 
 ```bash
-# Load Git service functions (环境变量已通过 settings.local.json 自动加载)
-source .claude/scripts/git/git-service-functions.sh
-
 echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
 
 # Check repository protection
