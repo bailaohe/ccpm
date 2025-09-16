@@ -4,7 +4,7 @@ allowed-tools: Bash, Read, Write, LS, Task
 
 # Issue Start
 
-Begin work on a GitHub issue with parallel agents based on work stream analysis.
+Begin work on a Git Service issue with parallel agents based on work stream analysis.
 
 ## Usage
 ```
@@ -15,13 +15,6 @@ Begin work on a GitHub issue with parallel agents based on work stream analysis.
 
 0. **Initialize Git Service Detection:**
    ```bash
-   # Load Git service functions
-   source .claude/scripts/pm/git-service-functions.sh
-
-   # Detect current Git service
-   detect_git_service
-   verify_cli_tool "$GIT_CLI_TOOL" || exit 1
-
    echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
 
    # Check repository protection
@@ -36,7 +29,7 @@ Begin work on a GitHub issue with parallel agents based on work stream analysis.
 
 2. **Find local task file:**
    - First check if `.claude/epics/*/$ARGUMENTS.md` exists (new naming)
-   - If not found, search for file containing `github:.*issues/$ARGUMENTS` in frontmatter (old naming)
+   - If not found, search for file containing `gitsrv:.*issues/$ARGUMENTS` in frontmatter (old naming)
    - If not found: "❌ No local task for issue #$ARGUMENTS. This issue may have been created outside the PM system."
 
 3. **Check for analysis:**
@@ -175,4 +168,4 @@ If any step fails, report clearly:
 ## Important Notes
 
 Follow `/rules/datetime.md` for timestamps.
-Keep it simple - trust that GitHub and file system work.
+Keep it simple - trust that Git Service and file system work.

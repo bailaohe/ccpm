@@ -13,12 +13,12 @@ Check issue status (open/closed) and current state.
 
 ## Instructions
 
-You are checking the current status of a GitHub issue and providing a quick status report for: **Issue #$ARGUMENTS**
+You are checking the current status of a Git service issue and providing a quick status report for: **Issue #$ARGUMENTS**
 
 ### 1. Fetch Issue Status
-Use GitHub CLI to get current status:
+Use unified interface to get current status:
 ```bash
-gh issue view #$ARGUMENTS --json state,title,labels,assignees,updatedAt
+git_view_issue $ARGUMENTS
 ```
 
 ### 2. Status Display
@@ -65,8 +65,8 @@ Based on status, suggest actions:
 🚀 Suggested Actions:
    - Start work: /pm:issue-start $ARGUMENTS
    - Sync updates: /pm:issue-sync $ARGUMENTS
-   - Close issue: gh issue close #$ARGUMENTS
-   - Reopen issue: gh issue reopen #$ARGUMENTS
+   - Close issue: Use git_close_issue function
+   - Reopen issue: Use git_reopen_issue function
 ```
 
 ### 7. Batch Status

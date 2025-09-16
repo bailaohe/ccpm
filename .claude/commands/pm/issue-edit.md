@@ -4,7 +4,7 @@ allowed-tools: Bash, Read, Write, LS
 
 # Issue Edit
 
-Edit issue details locally and on GitHub.
+Edit issue details locally and on Git service.
 
 ## Usage
 ```
@@ -16,11 +16,11 @@ Edit issue details locally and on GitHub.
 ### 1. Get Current Issue State
 
 ```bash
-# Get from GitHub
-gh issue view $ARGUMENTS --json title,body,labels
+# Get from Git service using unified interface
+git_view_issue $ARGUMENTS
 
 # Find local task file
-# Search for file with github:.*issues/$ARGUMENTS
+# Search for file with gitsrv:.*issues/$ARGUMENTS
 ```
 
 ### 2. Interactive Edit
@@ -41,22 +41,21 @@ Update task file with changes:
 - Update body content if description changed
 - Update `updated` field with current datetime
 
-### 4. Update GitHub
+### 4. Update Git Service
 
 If title changed:
 ```bash
-gh issue edit $ARGUMENTS --title "{new_title}"
+git_edit_issue $ARGUMENTS "{new_title}"
 ```
 
 If body changed:
 ```bash
-gh issue edit $ARGUMENTS --body-file {updated_task_file}
+git_edit_issue $ARGUMENTS "" "{updated_task_file}"
 ```
 
 If labels changed:
 ```bash
-gh issue edit $ARGUMENTS --add-label "{new_labels}"
-gh issue edit $ARGUMENTS --remove-label "{removed_labels}"
+git_edit_issue $ARGUMENTS "" "" "{new_labels}"
 ```
 
 ### 5. Output
@@ -66,11 +65,11 @@ gh issue edit $ARGUMENTS --remove-label "{removed_labels}"
   Changes:
     {list_of_changes_made}
   
-Synced to GitHub: ✅
+Synced to $GIT_SERVICE: ✅
 ```
 
 ## Important Notes
 
-Always update local first, then GitHub.
+Always update local first, then Git service.
 Preserve frontmatter fields not being edited.
 Follow `/rules/frontmatter-operations.md`.

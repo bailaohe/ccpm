@@ -4,7 +4,7 @@ allowed-tools: Bash, Read, Write, LS
 
 # Issue Close
 
-Mark an issue as complete and close it on GitHub.
+Mark an issue as complete and close it on Git Service.
 
 ## Usage
 ```
@@ -16,12 +16,8 @@ Mark an issue as complete and close it on GitHub.
 ### 0. Initialize Git Service Detection
 
 ```bash
-# Load Git service functions
-source .claude/scripts/pm/git-service-functions.sh
-
-# Detect current Git service
-detect_git_service
-verify_cli_tool "$GIT_CLI_TOOL" || exit 1
+# Load Git service functions (环境变量已通过 settings.local.json 自动加载)
+source .claude/scripts/git/git-service-functions.sh
 
 echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
 
@@ -32,7 +28,7 @@ check_repository_protection
 ### 1. Find Local Task File
 
 First check if `.claude/epics/*/$ARGUMENTS.md` exists (new naming).
-If not found, search for task file with `github:.*issues/$ARGUMENTS` in frontmatter (old naming).
+If not found, search for task file with `gitsrv:.*issues/$ARGUMENTS` in frontmatter (old naming).
 If not found: "❌ No local task for issue #$ARGUMENTS"
 
 ### 2. Update Local Status
@@ -77,7 +73,7 @@ Check the task checkbox in the epic issue:
 epic_name={extract_from_path}
 
 # Get epic issue number from epic.md
-epic_issue=$(grep 'github:' .claude/epics/$epic_name/epic.md | grep -oE '[0-9]+$')
+epic_issue=$(grep 'gitsrv:' .claude/epics/$epic_name/epic.md | grep -oE '[0-9]+$')
 
 if [ ! -z "$epic_issue" ]; then
   # Get current epic body using unified interface
@@ -105,7 +101,7 @@ fi
 ```
 ✅ Closed issue #$ARGUMENTS
   Local: Task marked complete
-  GitHub: Issue closed & epic updated
+  Git Service: Issue closed & epic updated
   Epic progress: {new_progress}% ({closed}/{total} tasks complete)
   
 Next: Run /pm:next for next priority task
@@ -114,5 +110,5 @@ Next: Run /pm:next for next priority task
 ## Important Notes
 
 Follow `/rules/frontmatter-operations.md` for updates.
-Follow `/rules/github-operations.md` for GitHub commands.
-Always sync local state before GitHub.
+Follow `/rules/git-service-operations.md` for Git Service commands.
+Always sync local state before Git Service.

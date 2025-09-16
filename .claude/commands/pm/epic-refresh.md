@@ -29,21 +29,21 @@ progress = (closed_tasks / total_tasks) * 100
 
 Round to nearest integer.
 
-### 3. Update GitHub Task List
+### 3. Update Git Service Task List
 
-If epic has GitHub issue, sync task checkboxes:
+If epic has Git Service issue, sync task checkboxes:
 
 ```bash
 # Get epic issue number from epic.md frontmatter
-epic_issue={extract_from_github_field}
+epic_issue={extract_from_gitsrv_field}
 
 if [ ! -z "$epic_issue" ]; then
-  # Get current epic body
-  gh issue view $epic_issue --json body -q .body > /tmp/epic-body.md
+  # Get current epic body using unified interface
+  git_view_issue $epic_issue | jq -r '.body' > /tmp/epic-body.md
   
   # For each task, check its status and update checkbox
   for task_file in .claude/epics/$ARGUMENTS/[0-9]*.md; do
-    task_issue=$(grep 'github:' $task_file | grep -oE '[0-9]+$')
+    task_issue=$(grep 'gitsrv:' $task_file | grep -oE '[0-9]+$')
     task_status=$(grep 'status:' $task_file | cut -d: -f2 | tr -d ' ')
     
     if [ "$task_status" = "closed" ]; then
@@ -55,8 +55,8 @@ if [ ! -z "$epic_issue" ]; then
     fi
   done
   
-  # Update epic issue
-  gh issue edit $epic_issue --body-file /tmp/epic-body.md
+  # Update epic issue using unified interface
+  git_edit_issue $epic_issue "" "/tmp/epic-body.md"
 fi
 ```
 
@@ -89,7 +89,7 @@ Tasks:
   
 Progress: {old_progress}% → {new_progress}%
 Status: {old_status} → {new_status}
-GitHub: Task list updated ✓
+Git Service: Task list updated ✓
 
 {If complete}: Run /pm:epic-close $ARGUMENTS to close epic
 {If in progress}: Run /pm:next to see priority tasks
@@ -97,6 +97,6 @@ GitHub: Task list updated ✓
 
 ## Important Notes
 
-This is useful after manual task edits or GitHub sync.
+This is useful after manual task edits or Git Service sync.
 Don't modify task files, only epic status.
 Preserve all other frontmatter fields.

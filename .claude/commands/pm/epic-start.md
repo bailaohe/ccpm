@@ -18,8 +18,8 @@ Launch parallel agents to work on epic tasks in a shared branch.
    test -f .claude/epics/$ARGUMENTS/epic.md || echo "❌ Epic not found. Run: /pm:prd-parse $ARGUMENTS"
    ```
 
-2. **Check GitHub sync:**
-   Look for `github:` field in epic frontmatter.
+2. **Check Git Service sync:**
+   Look for `gitsrv:` field in epic frontmatter.
    If missing: "❌ Epic not synced. Run: /pm:epic-sync $ARGUMENTS first"
 
 3. **Check for branch:**
@@ -64,7 +64,7 @@ fi
 
 Read all task files in `.claude/epics/$ARGUMENTS/`:
 - Parse frontmatter for `status`, `depends_on`, `parallel` fields
-- Check GitHub issue status if needed
+- Check Git Service issue status if needed
 - Build dependency graph
 
 Categorize issues:

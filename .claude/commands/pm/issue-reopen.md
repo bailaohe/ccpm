@@ -15,7 +15,7 @@ Reopen a closed issue.
 
 ### 1. Find Local Task File
 
-Search for task file with `github:.*issues/$ARGUMENTS` in frontmatter.
+Search for task file with `gitsrv:.*issues/$ARGUMENTS` in frontmatter.
 If not found: "❌ No local task for issue #$ARGUMENTS"
 
 ### 2. Update Local Status
@@ -35,19 +35,22 @@ If progress file exists:
 - Reset completion to previous value or 0%
 - Add note about reopening with reason
 
-### 4. Reopen on GitHub
+### 4. Reopen on Git Service
 
 ```bash
-# Reopen with comment
+# Prepare reopen comment
 echo "🔄 Reopening issue
 
 Reason: $ARGUMENTS
 
 ---
-Reopened at: {timestamp}" | gh issue comment $ARGUMENTS --body-file -
+Reopened at: {timestamp}" > /tmp/reopen-comment.md
 
-# Reopen the issue
-gh issue reopen $ARGUMENTS
+# Reopen issue with comment using unified interface
+git_reopen_issue $ARGUMENTS "$(cat /tmp/reopen-comment.md)"
+
+# Clean up
+rm /tmp/reopen-comment.md
 ```
 
 ### 5. Update Epic Progress

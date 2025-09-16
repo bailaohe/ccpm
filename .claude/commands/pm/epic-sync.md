@@ -4,7 +4,7 @@ allowed-tools: Bash, Read, Write, LS, Task
 
 # Epic Sync
 
-Push epic and tasks to GitHub as issues.
+Push epic and tasks to Git Service as issues.
 
 ## Usage
 ```
@@ -30,13 +30,6 @@ If no tasks found: "❌ No tasks to sync. Run: /pm:epic-decompose $ARGUMENTS"
 Follow `/rules/git-service-operations.md` for guidance:
 
 ```bash
-# Load Git service functions
-source .claude/scripts/pm/git-service-functions.sh
-
-# Detect current Git service
-detect_git_service
-verify_cli_tool "$GIT_CLI_TOOL" || exit 1
-
 echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
 
 # Check repository protection
@@ -45,7 +38,7 @@ check_repository_protection
 
 ### 1. Create Epic Issue
 
-Strip frontmatter and prepare GitHub issue body:
+Strip frontmatter and prepare Git Service issue body:
 ```bash
 # Extract content without frontmatter
 sed '1,/^---$/d; 1,/^---$/d' .claude/epics/$ARGUMENTS/epic.md > /tmp/epic-body-raw.md
@@ -107,8 +100,10 @@ Store the returned issue number for epic frontmatter update.
 Check if sub-issue support is available (GitHub only):
 ```bash
 use_subissues=false
-if [ "$GIT_SERVICE" = "github" ]; then
-  if gh extension list | grep -q "yahsan2/gh-sub-issue"; then
+if test "$GIT_SERVICE" = "github"
+then
+  if command -v gh &> /dev/null && gh extension list | grep -q "yahsan2/gh-sub-issue"
+  then
     use_subissues=true
   else
     echo "⚠️ gh-sub-issue not installed. Using fallback mode."
@@ -160,10 +155,10 @@ if [ "$task_count" -ge 5 ]; then
   echo "Creating $task_count sub-issues in parallel..."
 
   # Check if gh-sub-issue is available for parallel agents
-  if gh extension list | grep -q "yahsan2/gh-sub-issue"; then
+  if [ "$GIT_SERVICE" = "github" ] && command -v gh &> /dev/null && gh extension list | grep -q "yahsan2/gh-sub-issue"; then
     subissue_cmd="gh sub-issue create --parent $epic_number"
   else
-    subissue_cmd="gh issue create"
+    subissue_cmd="git_create_issue"
   fi
 
   # Batch tasks for parallel processing
@@ -175,10 +170,10 @@ fi
 Use Task tool for parallel creation:
 ```yaml
 Task:
-  description: "Create GitHub sub-issues batch {X}"
+  description: "Create sub-issues batch {X}"
   subagent_type: "general-purpose"
   prompt: |
-    Create GitHub sub-issues for tasks in epic $ARGUMENTS
+    Create sub-issues for tasks in epic $ARGUMENTS
     Parent epic issue: #$epic_number
 
     Tasks to process:
@@ -187,13 +182,11 @@ Task:
     For each task file:
     1. Extract task name from frontmatter
     2. Strip frontmatter using: sed '1,/^---$/d; 1,/^---$/d'
-    3. Create sub-issue using:
+    3. Create sub-issue using unified interface:
        - If gh-sub-issue available:
-         gh sub-issue create --parent $epic_number --title "$task_name" \
-           --body-file /tmp/task-body.md --label "task,epic:$ARGUMENTS"
+         git_create_sub_issue $epic_number "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS"
        - Otherwise:
-         gh issue create --title "$task_name" --body-file /tmp/task-body.md \
-           --label "task,epic:$ARGUMENTS"
+         git_create_issue "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS"
     4. Record: task_file:issue_number
 
     IMPORTANT: Always include --label parameter with "task,epic:$ARGUMENTS"
@@ -254,7 +247,7 @@ while IFS=: read -r task_file task_number; do
   current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
   # Use sed to update the github and updated fields
-  sed -i.bak "/^github:/c\github: $issue_url" "$new_name"
+  sed -i.bak "/^gitsrv:/c\gitsrv: $issue_url" "$new_name"
   sed -i.bak "/^updated:/c\updated: $current_date" "$new_name"
   rm "${new_name}.bak"
 done < /tmp/task-mapping.txt
@@ -266,8 +259,8 @@ If NOT using gh-sub-issue, add task list to epic:
 
 ```bash
 if [ "$use_subissues" = false ]; then
-  # Get current epic body
-  gh issue view {epic_number} --json body -q .body > /tmp/epic-body.md
+  # Get current epic body using unified interface
+  git_view_issue {epic_number} | jq -r '.body' > /tmp/epic-body.md
 
   # Append task list
   cat >> /tmp/epic-body.md << 'EOF'
@@ -278,8 +271,8 @@ if [ "$use_subissues" = false ]; then
   - [ ] #{task3_number} {task3_name}
   EOF
 
-  # Update epic issue
-  gh issue edit {epic_number} --body-file /tmp/epic-body.md
+  # Update epic issue using unified interface
+  git_edit_issue {epic_number} "" "/tmp/epic-body.md"
 fi
 ```
 
@@ -287,7 +280,7 @@ With gh-sub-issue, this is automatic!
 
 ### 5. Update Epic File
 
-Update the epic file with GitHub URL, timestamp, and real task IDs:
+Update the epic file with Git Service URL, timestamp, and real task IDs:
 
 #### 5a. Update Frontmatter
 ```bash
@@ -296,7 +289,7 @@ epic_url=$(git_get_issue_url "$epic_number")
 current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Update epic frontmatter
-sed -i.bak "/^github:/c\github: $epic_url" .claude/epics/$ARGUMENTS/epic.md
+sed -i.bak "/^gitsrv:/c\gitsrv: $epic_url" .claude/epics/$ARGUMENTS/epic.md
 sed -i.bak "/^updated:/c\updated: $current_date" .claude/epics/$ARGUMENTS/epic.md
 rm .claude/epics/$ARGUMENTS/epic.md.bak
 ```
@@ -407,7 +400,7 @@ echo "✅ Created worktree: ../epic-$ARGUMENTS"
 ### 8. Output
 
 ```
-✅ Synced to GitHub
+✅ Synced to Git Service
   - Epic: #{epic_number} - {epic_title}
   - Tasks: {count} sub-issues created
   - Labels applied: epic, task, epic:{name}
@@ -423,7 +416,7 @@ Next steps:
 
 ## Error Handling
 
-Follow `/rules/github-operations.md` for GitHub CLI errors.
+Follow `/rules/git-service-operations.md` for Git Service CLI errors.
 
 If any issue creation fails:
 - Report what succeeded
@@ -432,7 +425,7 @@ If any issue creation fails:
 
 ## Important Notes
 
-- Trust GitHub CLI authentication
+- Trust Git Service CLI authentication
 - Don't pre-check for duplicates
 - Update frontmatter only after successful creation
 - Keep operations simple and atomic

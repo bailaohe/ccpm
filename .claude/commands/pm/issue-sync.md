@@ -4,7 +4,7 @@ allowed-tools: Bash, Read, Write, LS
 
 # Issue Sync
 
-Push local updates as GitHub issue comments for transparent audit trail.
+Push local updates as Git Service issue comments for transparent audit trail.
 
 ## Usage
 ```
@@ -25,13 +25,6 @@ Do not bother the user with preflight checks progress ("I'm not going to ..."). 
 
 0. **Initialize Git Service Detection:**
    ```bash
-   # Load Git service functions
-   source .claude/scripts/pm/git-service-functions.sh
-
-   # Detect current Git service
-   detect_git_service
-   verify_cli_tool "$GIT_CLI_TOOL" || exit 1
-
    echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
 
    # Check repository protection
@@ -65,7 +58,7 @@ Do not bother the user with preflight checks progress ("I'm not going to ..."). 
 
 ## Instructions
 
-You are synchronizing local development progress to GitHub as issue comments for: **Issue #$ARGUMENTS**
+You are synchronizing local development progress to Git Service as issue comments for: **Issue #$ARGUMENTS**
 
 ### 1. Gather Local Updates
 Collect all local updates for the issue:
@@ -145,7 +138,7 @@ name: [Task Title]
 status: open
 created: [preserve existing date]
 updated: [Use REAL datetime from command above]
-github: [Use git_get_issue_url function to get correct URL]
+gitsrv: [Use git_get_issue_url function to get correct URL]
 ---
 ```
 
@@ -159,7 +152,7 @@ name: [Task Title]
 status: closed
 created: [existing date]
 updated: [current date/time]
-github: [Use git_get_issue_url function to get correct URL]
+gitsrv: [Use git_get_issue_url function to get correct URL]
 ---
 ```
 
@@ -181,7 +174,7 @@ status: in-progress
 created: [existing date]
 progress: [calculated percentage based on completed tasks]%
 prd: [existing path]
-github: [existing URL]
+gitsrv: [existing URL]
 ---
 ```
 
@@ -216,7 +209,7 @@ This task is ready for review and can be closed.
 
 ### 9. Output Summary
 ```
-☁️ Synced updates to GitHub Issue #$ARGUMENTS
+☁️ Synced updates to Git Service Issue #$ARGUMENTS
 
 📝 Update summary:
    Progress items: {progress_count}
@@ -228,7 +221,7 @@ This task is ready for review and can be closed.
    Epic progress: {epic_progress}%
    Completed criteria: {completed}/{total}
 
-🔗 View update: gh issue view #$ARGUMENTS --comments
+🔗 View update: Use $GIT_CLI_TOOL to view comments
 ```
 
 ### 10. Frontmatter Maintenance
@@ -249,7 +242,7 @@ This task is ready for review and can be closed.
 
 ### 12. Comment Size Management
 
-**Handle GitHub's Comment Limits:**
+**Handle Git Service's Comment Limits:**
 - Max comment size: 65,536 characters
 - If update exceeds limit:
   1. Split into multiple comments
@@ -266,7 +259,7 @@ This task is ready for review and can be closed.
    - Keep local updates intact for retry
 
 2. **Rate Limit:**
-   - Message: "❌ GitHub rate limit exceeded"
+   - Message: "❌ Git Service rate limit exceeded"
    - Solution: "Wait {minutes} minutes or use different token"
    - Save comment locally for later sync
 
@@ -290,7 +283,7 @@ When updating epic progress:
 ### 15. Post-Sync Validation
 
 After successful sync:
-- [ ] Verify comment posted on GitHub
+- [ ] Verify comment posted on Git Service
 - [ ] Confirm frontmatter updated with sync timestamp
 - [ ] Check epic progress updated if task completed
 - [ ] Validate no data corruption in local files

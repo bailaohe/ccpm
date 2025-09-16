@@ -8,7 +8,7 @@ echo ""
 echo "📋 Testing Git Service Detection..."
 
 # Load the Git service functions
-source .claude/scripts/pm/git-service-functions.sh 2>/dev/null || {
+source .claude/scripts/git/git-service-functions.sh 2>/dev/null || {
   echo "❌ Failed to load git-service-functions.sh"
   exit 1
 }

@@ -13,11 +13,6 @@
 在任何需要 Git 操作的命令开头，都必须先加载函数库并检测当前 Git 服务：
 
 ```bash
-# 加载 Git 服务函数库
-source .claude/scripts/pm/git-service-functions.sh
-
-# 检测当前 Git 服务
-detect_git_service
 verify_cli_tool "$GIT_CLI_TOOL" || exit 1
 
 echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
@@ -147,12 +142,6 @@ fi
 
 ```bash
 #!/bin/bash
-
-# 加载 Git 服务函数
-source .claude/scripts/pm/git-service-functions.sh
-
-# 检测 Git 服务
-detect_git_service
 verify_cli_tool "$GIT_CLI_TOOL" || exit 1
 
 echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"

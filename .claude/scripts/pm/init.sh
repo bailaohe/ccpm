@@ -22,40 +22,105 @@ echo "🚀 Initializing Claude Code PM System"
 echo "======================================"
 echo ""
 
-# Choose Git service
-echo "🔧 Select your Git service:"
-echo "  1) GitHub"
-echo "  2) GitLab"
-echo "  3) Gitea"
-echo ""
-read -p "Enter your choice (1, 2, or 3): " git_service
+# Check if git service is provided as parameter
+if [ -n "$1" ]; then
+  # Use parameter to set git service
+  case "$1" in
+    "github"|"GitHub"|"GITHUB")
+      echo "✅ Using GitHub (from parameter)"
+      use_github=true
+      use_gitlab=false
+      use_gitea=false
+      ;;
+    "gitlab"|"GitLab"|"GITLAB")
+      echo "✅ Using GitLab (from parameter)"
+      use_github=false
+      use_gitlab=true
+      use_gitea=false
+      ;;
+    "gitea"|"Gitea"|"GITEA")
+      echo "✅ Using Gitea (from parameter)"
+      use_github=false
+      use_gitlab=false
+      use_gitea=true
+      ;;
+    *)
+      echo "❌ Invalid git service parameter: $1"
+      echo "    Valid options: github, gitlab, gitea"
+      echo "    Falling back to interactive selection..."
+      echo ""
+      # Fall back to interactive selection
+      echo "🔧 Select your Git service:"
+      echo "  1) GitHub"
+      echo "  2) GitLab"
+      echo "  3) Gitea"
+      echo ""
+      read -p "Enter your choice (1, 2, or 3): " git_service
+      
+      case $git_service in
+        1)
+          echo "✅ Selected GitHub"
+          use_github=true
+          use_gitlab=false
+          use_gitea=false
+          ;;
+        2)
+          echo "✅ Selected GitLab"
+          use_github=false
+          use_gitlab=true
+          use_gitea=false
+          ;;
+        3)
+          echo "✅ Selected Gitea"
+          use_github=false
+          use_gitlab=false
+          use_gitea=true
+          ;;
+        *)
+          echo "❌ Invalid choice, defaulting to GitHub"
+          use_github=true
+          use_gitlab=false
+          use_gitea=false
+          ;;
+      esac
+      ;;
+  esac
+else
+  # Interactive selection (original behavior)
+  echo "🔧 Select your Git service:"
+  echo "  1) GitHub"
+  echo "  2) GitLab"
+  echo "  3) Gitea"
+  echo ""
+  read -p "Enter your choice (1, 2, or 3): " git_service
 
-case $git_service in
-  1)
-    echo "✅ Selected GitHub"
-    use_github=true
-    use_gitlab=false
-    use_gitea=false
-    ;;
-  2)
-    echo "✅ Selected GitLab"
-    use_github=false
-    use_gitlab=true
-    use_gitea=false
-    ;;
-  3)
-    echo "✅ Selected Gitea"
-    use_github=false
-    use_gitlab=false
-    use_gitea=true
-    ;;
-  *)
-    echo "❌ Invalid choice, defaulting to GitHub"
-    use_github=true
-    use_gitlab=false
-    use_gitea=false
-    ;;
-esac
+  case $git_service in
+    1)
+      echo "✅ Selected GitHub"
+      use_github=true
+      use_gitlab=false
+      use_gitea=false
+      ;;
+    2)
+      echo "✅ Selected GitLab"
+      use_github=false
+      use_gitlab=true
+      use_gitea=false
+      ;;
+    3)
+      echo "✅ Selected Gitea"
+      use_github=false
+      use_gitlab=false
+      use_gitea=true
+      ;;
+    *)
+      echo "❌ Invalid choice, defaulting to GitHub"
+      use_github=true
+      use_gitlab=false
+      use_gitea=false
+      ;;
+  esac
+fi
 
 echo ""
 
@@ -271,18 +336,11 @@ elif $use_gitea; then
   cli_tool="tea"
 fi
 
-# Write configuration
-current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-cat > .claude/config/git-service.json << EOF
-{
-  "service": "$service",
-  "cli_tool": "$cli_tool",
-  "initialized": true,
-  "last_updated": "$current_date"
-}
-EOF
+# Load git service functions and update settings
+source .claude/scripts/git/git-service-functions.sh
+update_git_service_config "$service" "$cli_tool"
 
-echo "  ✅ Configuration saved to .claude/config/git-service.json"
+echo "  ✅ Configuration saved to .claude/settings.local.json"
 
 # Summary
 echo ""

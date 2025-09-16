@@ -72,7 +72,7 @@ status: backlog
 created: [Current ISO date/time]
 progress: 0%
 prd: .claude/prds/$ARGUMENTS.md
-github: [Will be updated when synced to GitHub]
+gitsrv: [Will be updated when synced to Git Service (Github/Gitlab/Gitea)]
 ---
 
 # Epic: $ARGUMENTS

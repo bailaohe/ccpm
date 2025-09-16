@@ -5,54 +5,68 @@
 
 # 检测并设置 Git 服务配置
 detect_git_service() {
-  local config_file=".claude/config/git-service.json"
-  
-  # 如果配置文件存在且已初始化，直接读取
-  if [ -f "$config_file" ]; then
-    local initialized=$(grep '"initialized"' "$config_file" | grep -o 'true\|false')
-    if [ "$initialized" = "true" ]; then
-      GIT_SERVICE=$(grep '"service"' "$config_file" | sed 's/.*": *"\([^"]*\)".*/\1/')
-      GIT_CLI_TOOL=$(grep '"cli_tool"' "$config_file" | sed 's/.*": *"\([^"]*\)".*/\1/')
-      return 0
-    fi
+  # 如果环境变量已设置，直接使用
+  if [ -n "$GIT_SERVICE" ] && [ -n "$GIT_CLI_TOOL" ]; then
+    return 0
   fi
   
-  # 如果未初始化，从 remote URL 推断
+  # 如果环境变量未设置，从 remote URL 推断
   local remote_url=$(git remote get-url origin 2>/dev/null || echo "")
   
   if [[ "$remote_url" == *"github.com"* ]]; then
-    GIT_SERVICE="github"
-    GIT_CLI_TOOL="gh"
+    export GIT_SERVICE="github"
+    export GIT_CLI_TOOL="gh"
   elif [[ "$remote_url" == *"gitlab.com"* ]] || [[ "$remote_url" == *"gitlab"* ]]; then
-    GIT_SERVICE="gitlab"
-    GIT_CLI_TOOL="glab"
+    export GIT_SERVICE="gitlab"
+    export GIT_CLI_TOOL="glab"
   else
     # 默认假设是 Gitea 或其他自建服务
-    GIT_SERVICE="gitea"
-    GIT_CLI_TOOL="tea"
+    export GIT_SERVICE="gitea"
+    export GIT_CLI_TOOL="tea"
   fi
-  
-  # 更新配置文件
-  update_git_service_config "$GIT_SERVICE" "$GIT_CLI_TOOL"
 }
 
-# 更新配置文件
+# 更新 settings.local.json 中的环境变量配置
 update_git_service_config() {
   local service="$1"
   local cli_tool="$2"
-  local config_file=".claude/config/git-service.json"
-  local current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  local settings_file=".claude/settings.local.json"
   
-  mkdir -p "$(dirname "$config_file")"
-  
-  cat > "$config_file" << EOF
+  # 如果 settings.local.json 不存在，创建基本结构
+  if [ ! -f "$settings_file" ]; then
+    cat > "$settings_file" << 'EOF'
 {
-  "service": "$service",
-  "cli_tool": "$cli_tool",
-  "initialized": true,
-  "last_updated": "$current_date"
+  "permissions": {
+    "allow": []
+  },
+  "env": {}
 }
 EOF
+  fi
+  
+  # 使用 jq 更新环境变量，如果没有 jq 则使用 sed 备用方案
+  if command -v jq &> /dev/null; then
+    jq --arg service "$service" --arg cli_tool "$cli_tool" \
+       '.env.GIT_SERVICE = $service | .env.GIT_CLI_TOOL = $cli_tool' \
+       "$settings_file" > "${settings_file}.tmp" && mv "${settings_file}.tmp" "$settings_file"
+  else
+    # 备用方案：使用 sed 更新
+    if grep -q '"env"' "$settings_file"; then
+      # 更新现有的 env 部分
+      sed -i.bak '/"env":/,/}/ {
+        s/"GIT_SERVICE": *"[^"]*"/"GIT_SERVICE": "'"$service"'"/
+        s/"GIT_CLI_TOOL": *"[^"]*"/"GIT_CLI_TOOL": "'"$cli_tool"'"/
+      }' "$settings_file"
+      
+      # 如果没找到对应的键，添加它们
+      if ! grep -q '"GIT_SERVICE"' "$settings_file"; then
+        sed -i.bak '/"env": *{/ a\
+    "GIT_SERVICE": "'"$service"'",\
+    "GIT_CLI_TOOL": "'"$cli_tool"'"' "$settings_file"
+      fi
+    fi
+    rm -f "${settings_file}.bak"
+  fi
 }
 
 # 验证 CLI 工具是否可用
@@ -133,7 +147,9 @@ git_create_issue() {
       glab issue create --title "$title" --description-file "$body_file" $label_args --output json | jq -r '.iid'
       ;;
     "gitea")
-      tea issue create --title "$title" --body-file "$body_file" --labels "$labels" --output json | jq -r '.number'
+      local repo_info=$(git_get_repo_info)
+      local output=$(tea issue create --repo "$repo_info" --title "$title" --description "$(cat "$body_file")" --labels "$labels" 2>&1)
+      echo "$output" | grep -o '#[0-9]\+' | head -1 | sed 's/#//'
       ;;
   esac
 }
@@ -150,7 +166,8 @@ git_view_issue() {
       glab issue view "$issue_number" --output json
       ;;
     "gitea")
-      tea issue view "$issue_number" --output json
+      local repo_info=$(git_get_repo_info)
+      tea issue view "$issue_number" --repo "$repo_info"
       ;;
   esac
 }
@@ -188,9 +205,10 @@ git_edit_issue() {
       eval "glab issue update $issue_number $args"
       ;;
     "gitea")
-      local args=""
+      local repo_info=$(git_get_repo_info)
+      local args="--repo \"$repo_info\""
       [ -n "$title" ] && args="$args --title \"$title\""
-      [ -n "$body_file" ] && args="$args --body-file \"$body_file\""
+      [ -n "$body_file" ] && args="$args --description \"$(cat "$body_file")\""
       [ -n "$add_labels" ] && args="$args --add-labels \"$add_labels\""
       [ -n "$assignee" ] && args="$args --add-assignees \"$assignee\""
       eval "tea issue edit $issue_number $args"
@@ -358,7 +376,7 @@ git_list_issues() {
       eval "glab issue list $args"
       ;;
     "gitea")
-      local args="--output json"
+      local args=""
       [ -n "$label_filter" ] && args="--labels \"$label_filter\" $args"
       [ -n "$state" ] && args="--state \"$state\" $args"
       eval "tea issue list $args"

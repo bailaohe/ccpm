@@ -37,7 +37,7 @@ else
   # Extract metadata
   status=$(grep "^status:" "$epic_file" | head -1 | sed 's/^status: *//')
   progress=$(grep "^progress:" "$epic_file" | head -1 | sed 's/^progress: *//')
-  github=$(grep "^github:" "$epic_file" | head -1 | sed 's/^github: *//')
+  gitsrv=$(grep "^gitsrv:" "$epic_file" | head -1 | sed 's/^gitsrv: *//')
 
   # Count tasks
   total=0
@@ -83,8 +83,8 @@ else
   echo "  🔄 Available: $open"
   echo "  ⏸️ Blocked: $blocked"
 
-  [ -n "$github" ] && echo ""
-  [ -n "$github" ] && echo "🔗 GitHub: $github"
+  [ -n "$gitsrv" ] && echo ""
+  [ -n "$gitsrv" ] && echo "🔗 Git Service: $gitsrv"
 fi
 
 exit 0

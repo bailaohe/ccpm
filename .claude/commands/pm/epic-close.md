@@ -35,11 +35,12 @@ completed: {current_datetime}
 
 If epic references a PRD, update its status to "complete".
 
-### 4. Close Epic on GitHub
+### 4. Close Epic on Git Service
 
-If epic has GitHub issue:
+If epic has issue number:
 ```bash
-gh issue close {epic_issue_number} --comment "✅ Epic completed - all tasks done"
+# 关闭 epic issue
+git_close_issue {epic_issue_number} "✅ Epic completed - all tasks done"
 ```
 
 ### 5. Archive Option
