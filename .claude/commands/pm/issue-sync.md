@@ -15,29 +15,35 @@ Push local updates as GitHub issue comments for transparent audit trail.
 
 **IMPORTANT:** Before executing this command, read and follow:
 - `.claude/rules/datetime.md` - For getting real current date/time
+- `.claude/rules/git-service-detection.md` - For Git service detection
+- `.claude/rules/unified-git-operations.md` - For unified Git operations
 
 ## Preflight Checklist
 
 Before proceeding, complete these validation steps.
 Do not bother the user with preflight checks progress ("I'm not going to ..."). Just do them and move on.
 
-0. **Repository Protection Check:**
-   Follow `/rules/github-operations.md` - check remote origin:
+0. **Initialize Git Service Detection:**
    ```bash
-   remote_url=$(git remote get-url origin 2>/dev/null || echo "")
-   if [[ "$remote_url" == *"automazeio/ccpm"* ]]; then
-     echo "❌ ERROR: Cannot sync to CCPM template repository!"
-     echo "Update your remote: git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
-     exit 1
-   fi
+   # Load Git service functions
+   source .claude/scripts/pm/git-service-functions.sh
+
+   # Detect current Git service
+   detect_git_service
+   verify_cli_tool "$GIT_CLI_TOOL" || exit 1
+
+   echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
+
+   # Check repository protection
+   check_repository_protection
    ```
 
-1. **GitHub Authentication:**
-   - Run: `gh auth status`
-   - If not authenticated, tell user: "❌ GitHub CLI not authenticated. Run: gh auth login"
+1. **Git Service Authentication:**
+   - Authentication is handled by unified operations
+   - If not authenticated, tell user: "❌ $GIT_CLI_TOOL CLI not authenticated. Run: $GIT_CLI_TOOL auth login"
 
 2. **Issue Validation:**
-   - Run: `gh issue view $ARGUMENTS --json state`
+   - Run: `git_view_issue $ARGUMENTS`
    - If issue doesn't exist, tell user: "❌ Issue #$ARGUMENTS not found"
    - If issue is closed and completion < 100%, warn: "⚠️ Issue is closed but work incomplete"
 
@@ -123,10 +129,10 @@ Create comprehensive update comment:
 *Progress: {completion}% | Synced from local updates at {timestamp}*
 ```
 
-### 5. Post to GitHub
-Use GitHub CLI to add comment:
+### 5. Post to Git Service
+Use unified interface to add comment:
 ```bash
-gh issue comment #$ARGUMENTS --body-file {temp_comment_file}
+git_add_comment "$ARGUMENTS" "{temp_comment_file}"
 ```
 
 ### 6. Update Local Task File
@@ -139,7 +145,7 @@ name: [Task Title]
 status: open
 created: [preserve existing date]
 updated: [Use REAL datetime from command above]
-github: https://github.com/{org}/{repo}/issues/$ARGUMENTS
+github: [Use git_get_issue_url function to get correct URL]
 ---
 ```
 
@@ -153,7 +159,7 @@ name: [Task Title]
 status: closed
 created: [existing date]
 updated: [current date/time]
-github: https://github.com/{org}/{repo}/issues/$ARGUMENTS
+github: [Use git_get_issue_url function to get correct URL]
 ---
 ```
 

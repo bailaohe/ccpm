@@ -12,6 +12,8 @@
       "Bash(fi)",
       "Bash(find *)",
       "Bash(gh *)",
+      "Bash(glab *)",
+      "Bash(tea *)",
       "Bash(git *)",
       "Bash(grep *)",
       "Bash(kill:*)",

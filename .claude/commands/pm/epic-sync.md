@@ -25,32 +25,22 @@ If no tasks found: "❌ No tasks to sync. Run: /pm:epic-decompose $ARGUMENTS"
 
 ## Instructions
 
-### 0. Check Remote Repository
+### 0. Initialize Git Service Detection
 
-Follow `/rules/github-operations.md` to ensure we're not syncing to the CCPM template:
+Follow `/rules/git-service-operations.md` for guidance:
 
 ```bash
-# Check if remote origin is the CCPM template repository
-remote_url=$(git remote get-url origin 2>/dev/null || echo "")
-if [[ "$remote_url" == *"automazeio/ccpm"* ]] || [[ "$remote_url" == *"automazeio/ccpm.git"* ]]; then
-  echo "❌ ERROR: You're trying to sync with the CCPM template repository!"
-  echo ""
-  echo "This repository (automazeio/ccpm) is a template for others to use."
-  echo "You should NOT create issues or PRs here."
-  echo ""
-  echo "To fix this:"
-  echo "1. Fork this repository to your own GitHub account"
-  echo "2. Update your remote origin:"
-  echo "   git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
-  echo ""
-  echo "Or if this is a new project:"
-  echo "1. Create a new repository on GitHub"
-  echo "2. Update your remote origin:"
-  echo "   git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
-  echo ""
-  echo "Current remote: $remote_url"
-  exit 1
-fi
+# Load Git service functions
+source .claude/scripts/pm/git-service-functions.sh
+
+# Detect current Git service
+detect_git_service
+verify_cli_tool "$GIT_CLI_TOOL" || exit 1
+
+echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
+
+# Check repository protection
+check_repository_protection
 ```
 
 ### 1. Create Epic Issue
@@ -106,25 +96,25 @@ else
   epic_type="feature"
 fi
 
-# Create epic issue with labels
-epic_number=$(gh issue create \
-  --title "Epic: $ARGUMENTS" \
-  --body-file /tmp/epic-body.md \
-  --label "epic,epic:$ARGUMENTS,$epic_type" \
-  --json number -q .number)
+# Create epic issue with labels using unified interface
+epic_number=$(git_create_issue "Epic: $ARGUMENTS" "/tmp/epic-body.md" "epic,epic:$ARGUMENTS,$epic_type")
 ```
 
 Store the returned issue number for epic frontmatter update.
 
 ### 2. Create Task Sub-Issues
 
-Check if gh-sub-issue is available:
+Check if sub-issue support is available (GitHub only):
 ```bash
-if gh extension list | grep -q "yahsan2/gh-sub-issue"; then
-  use_subissues=true
+use_subissues=false
+if [ "$GIT_SERVICE" = "github" ]; then
+  if gh extension list | grep -q "yahsan2/gh-sub-issue"; then
+    use_subissues=true
+  else
+    echo "⚠️ gh-sub-issue not installed. Using fallback mode."
+  fi
 else
-  use_subissues=false
-  echo "⚠️ gh-sub-issue not installed. Using fallback mode."
+  echo "ℹ️ Sub-issues not supported for $GIT_SERVICE. Using regular issues."
 fi
 ```
 
@@ -147,20 +137,11 @@ if [ "$task_count" -lt 5 ]; then
     # Strip frontmatter from task content
     sed '1,/^---$/d; 1,/^---$/d' "$task_file" > /tmp/task-body.md
 
-    # Create sub-issue with labels
+    # Create sub-issue or regular issue using unified interface
     if [ "$use_subissues" = true ]; then
-      task_number=$(gh sub-issue create \
-        --parent "$epic_number" \
-        --title "$task_name" \
-        --body-file /tmp/task-body.md \
-        --label "task,epic:$ARGUMENTS" \
-        --json number -q .number)
+      task_number=$(git_create_sub_issue "$epic_number" "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS")
     else
-      task_number=$(gh issue create \
-        --title "$task_name" \
-        --body-file /tmp/task-body.md \
-        --label "task,epic:$ARGUMENTS" \
-        --json number -q .number)
+      task_number=$(git_create_issue "$task_name" "/tmp/task-body.md" "task,epic:$ARGUMENTS")
     fi
 
     # Record mapping for renaming
@@ -266,15 +247,14 @@ while IFS=: read -r task_file task_number; do
   [ "$task_file" != "$new_name" ] && rm "$task_file"
 
   # Update github field in frontmatter
-  # Add the GitHub URL to the frontmatter
-  repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-  github_url="https://github.com/$repo/issues/$task_number"
+  # Add the issue URL to the frontmatter using unified interface
+  issue_url=$(git_get_issue_url "$task_number")
 
-  # Update frontmatter with GitHub URL and current timestamp
+  # Update frontmatter with issue URL and current timestamp
   current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
   # Use sed to update the github and updated fields
-  sed -i.bak "/^github:/c\github: $github_url" "$new_name"
+  sed -i.bak "/^github:/c\github: $issue_url" "$new_name"
   sed -i.bak "/^updated:/c\updated: $current_date" "$new_name"
   rm "${new_name}.bak"
 done < /tmp/task-mapping.txt
@@ -311,9 +291,8 @@ Update the epic file with GitHub URL, timestamp, and real task IDs:
 
 #### 5a. Update Frontmatter
 ```bash
-# Get repo info
-repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-epic_url="https://github.com/$repo/issues/$epic_number"
+# Get epic URL using unified interface
+epic_url=$(git_get_issue_url "$epic_number")
 current_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Update epic frontmatter
@@ -380,13 +359,15 @@ rm /tmp/tasks-section.md
 
 ### 6. Create Mapping File
 
-Create `.claude/epics/$ARGUMENTS/github-mapping.md`:
+Create `.claude/epics/$ARGUMENTS/issue-mapping.md`:
 ```bash
 # Create mapping file
-cat > .claude/epics/$ARGUMENTS/github-mapping.md << EOF
-# GitHub Issue Mapping
+epic_url=$(git_get_issue_url "$epic_number")
 
-Epic: #${epic_number} - https://github.com/${repo}/issues/${epic_number}
+cat > .claude/epics/$ARGUMENTS/issue-mapping.md << EOF
+# Issue Mapping for $GIT_SERVICE
+
+Epic: #${epic_number} - ${epic_url}
 
 Tasks:
 EOF
@@ -397,13 +378,15 @@ for task_file in .claude/epics/$ARGUMENTS/[0-9]*.md; do
 
   issue_num=$(basename "$task_file" .md)
   task_name=$(grep '^name:' "$task_file" | sed 's/^name: *//')
+  issue_url=$(git_get_issue_url "$issue_num")
 
-  echo "- #${issue_num}: ${task_name} - https://github.com/${repo}/issues/${issue_num}" >> .claude/epics/$ARGUMENTS/github-mapping.md
+  echo "- #${issue_num}: ${task_name} - ${issue_url}" >> .claude/epics/$ARGUMENTS/issue-mapping.md
 done
 
 # Add sync timestamp
-echo "" >> .claude/epics/$ARGUMENTS/github-mapping.md
-echo "Synced: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .claude/epics/$ARGUMENTS/github-mapping.md
+echo "" >> .claude/epics/$ARGUMENTS/issue-mapping.md
+echo "Synced: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> .claude/epics/$ARGUMENTS/issue-mapping.md
+echo "Service: $GIT_SERVICE" >> .claude/epics/$ARGUMENTS/issue-mapping.md
 ```
 
 ### 7. Create Worktree

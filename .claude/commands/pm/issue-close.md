@@ -13,6 +13,22 @@ Mark an issue as complete and close it on GitHub.
 
 ## Instructions
 
+### 0. Initialize Git Service Detection
+
+```bash
+# Load Git service functions
+source .claude/scripts/pm/git-service-functions.sh
+
+# Detect current Git service
+detect_git_service
+verify_cli_tool "$GIT_CLI_TOOL" || exit 1
+
+echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
+
+# Check repository protection
+check_repository_protection
+```
+
 ### 1. Find Local Task File
 
 First check if `.claude/epics/*/$ARGUMENTS.md` exists (new naming).
@@ -36,23 +52,23 @@ If progress file exists at `.claude/epics/{epic}/updates/$ARGUMENTS/progress.md`
 - Add completion note with timestamp
 - Update last_sync with current datetime
 
-### 4. Close on GitHub
+### 4. Close Issue
 
-Add completion comment and close:
+Add completion comment and close using unified interface:
 ```bash
-# Add final comment
-echo "✅ Task completed
+# Create completion comment
+completion_comment="✅ Task completed
 
 $ARGUMENTS
 
 ---
-Closed at: {timestamp}" | gh issue comment $ARGUMENTS --body-file -
+Closed at: {timestamp}"
 
-# Close the issue
-gh issue close $ARGUMENTS
+# Close the issue with comment
+git_close_issue "$ARGUMENTS" "$completion_comment"
 ```
 
-### 5. Update Epic Task List on GitHub
+### 5. Update Epic Task List
 
 Check the task checkbox in the epic issue:
 
@@ -64,16 +80,16 @@ epic_name={extract_from_path}
 epic_issue=$(grep 'github:' .claude/epics/$epic_name/epic.md | grep -oE '[0-9]+$')
 
 if [ ! -z "$epic_issue" ]; then
-  # Get current epic body
-  gh issue view $epic_issue --json body -q .body > /tmp/epic-body.md
+  # Get current epic body using unified interface
+  git_view_issue "$epic_issue" | jq -r '.body' > /tmp/epic-body.md
   
   # Check off this task
   sed -i "s/- \[ \] #$ARGUMENTS/- [x] #$ARGUMENTS/" /tmp/epic-body.md
   
-  # Update epic issue
-  gh issue edit $epic_issue --body-file /tmp/epic-body.md
+  # Update epic issue using unified interface
+  git_edit_issue "$epic_issue" "" "/tmp/epic-body.md" "" ""
   
-  echo "✓ Updated epic progress on GitHub"
+  echo "✓ Updated epic progress on $GIT_SERVICE"
 fi
 ```
 

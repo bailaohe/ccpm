@@ -13,11 +13,26 @@ Begin work on a GitHub issue with parallel agents based on work stream analysis.
 
 ## Quick Check
 
+0. **Initialize Git Service Detection:**
+   ```bash
+   # Load Git service functions
+   source .claude/scripts/pm/git-service-functions.sh
+
+   # Detect current Git service
+   detect_git_service
+   verify_cli_tool "$GIT_CLI_TOOL" || exit 1
+
+   echo "Using $GIT_SERVICE with $GIT_CLI_TOOL CLI"
+
+   # Check repository protection
+   check_repository_protection
+   ```
+
 1. **Get issue details:**
    ```bash
-   gh issue view $ARGUMENTS --json state,title,labels,body
+   git_view_issue $ARGUMENTS
    ```
-   If it fails: "❌ Cannot access issue #$ARGUMENTS. Check number or run: gh auth login"
+   If it fails: "❌ Cannot access issue #$ARGUMENTS. Check number or run: $GIT_CLI_TOOL auth login"
 
 2. **Find local task file:**
    - First check if `.claude/epics/*/$ARGUMENTS.md` exists (new naming)
@@ -123,11 +138,11 @@ Task:
     Complete your stream's work and mark as completed when done.
 ```
 
-### 5. GitHub Assignment
+### 5. Issue Assignment
 
 ```bash
-# Assign to self and mark in-progress
-gh issue edit $ARGUMENTS --add-assignee @me --add-label "in-progress"
+# Assign to self and mark in-progress using unified interface
+git_edit_issue "$ARGUMENTS" "" "" "in-progress" "@me"
 ```
 
 ### 6. Output
