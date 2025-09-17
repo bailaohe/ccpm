@@ -295,7 +295,8 @@ git_add_comment() {
       glab issue note "$issue_number" --message-file "$comment_file"
       ;;
     "gitea")
-      tea comment "$issue_number" --body-file "$comment_file"
+      local repo_info=$(git_get_repo_info)
+      tea comment --repo "$repo_info" "$issue_number" "$comment_file"
       ;;
   esac
 }
@@ -322,9 +323,10 @@ git_close_issue() {
       ;;
     "gitea")
       if [ -n "$comment" ]; then
-        echo "$comment" | tea comment "$issue_number" --body-file -
+        local repo_info=$(git_get_repo_info)
+        tea comment --repo "$repo_info" "$issue_number" "$comment"
       fi
-      tea issue close "$issue_number"
+      tea issue close --repo "$repo_info" "$issue_number"
       ;;
   esac
 }
@@ -351,7 +353,8 @@ git_reopen_issue() {
       ;;
     "gitea")
       if [ -n "$comment" ]; then
-        echo "$comment" | tea comment "$issue_number" --body-file -
+        local repo_info=$(git_get_repo_info)
+        tea comment --repo "$repo_info" "$issue_number" "$comment"
       fi
       tea issue reopen "$issue_number"
       ;;
