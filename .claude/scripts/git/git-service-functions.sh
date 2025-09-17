@@ -133,6 +133,36 @@ EOF
   fi
 }
 
+# 解析文本内容：如果参数是文件路径且文件存在，则读取文件内容；否则直接返回参数内容
+# 
+# 使用场景：
+# - tea 工具不支持 --body-file 或 --message-file 参数，只能接受直接的文本内容
+# - 此函数提供统一的处理方式，支持文件路径和直接文本内容两种输入
+# 
+# 参数：
+#   $1 - 输入内容，可以是文件路径或直接的文本内容
+# 
+# 返回：
+#   如果输入是存在的文件路径，返回文件内容；否则返回输入本身
+resolve_text_content() {
+  local input="$1"
+  
+  # 检查输入是否为空
+  if [ -z "$input" ]; then
+    echo ""
+    return 0
+  fi
+  
+  # 检查是否是文件路径且文件存在
+  if [ -f "$input" ]; then
+    # 是文件且存在，读取文件内容
+    cat "$input"
+  else
+    # 不是文件或文件不存在，直接返回输入内容
+    echo "$input"
+  fi
+}
+
 # 验证 CLI 工具是否可用
 verify_cli_tool() {
   local cli_tool="$1"
@@ -212,7 +242,8 @@ git_create_issue() {
       ;;
     "gitea")
       local repo_info=$(git_get_repo_info)
-      local output=$(tea issue create --repo "$repo_info" --title "$title" --description "$(cat "$body_file")" --labels "$labels" 2>&1)
+      local body_content=$(resolve_text_content "$body_file")
+      local output=$(tea issue create --repo "$repo_info" --title "$title" --description "$body_content" --labels "$labels" 2>&1)
       echo "$output" | grep -o '#[0-9]\+' | head -1 | sed 's/#//'
       ;;
   esac
@@ -272,7 +303,10 @@ git_edit_issue() {
       local repo_info=$(git_get_repo_info)
       local args="--repo \"$repo_info\""
       [ -n "$title" ] && args="$args --title \"$title\""
-      [ -n "$body_file" ] && args="$args --description \"$(cat "$body_file")\""
+      if [ -n "$body_file" ]; then
+        local body_content=$(resolve_text_content "$body_file")
+        args="$args --description \"$body_content\""
+      fi
       [ -n "$add_labels" ] && args="$args --add-labels \"$add_labels\""
       [ -n "$assignee" ] && args="$args --add-assignees \"$assignee\""
       eval "tea issue edit $issue_number $args"
@@ -296,7 +330,8 @@ git_add_comment() {
       ;;
     "gitea")
       local repo_info=$(git_get_repo_info)
-      tea comment --repo "$repo_info" "$issue_number" "$comment_file"
+      local comment_content=$(resolve_text_content "$comment_file")
+      tea comment --repo "$repo_info" "$issue_number" "$comment_content"
       ;;
   esac
 }
